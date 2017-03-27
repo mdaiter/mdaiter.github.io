@@ -300,6 +300,19 @@ void barPtrDelete(OpaquePtr ptr) {
 </code></pre>
 
 <p>As seen above, the <code>toImpl</code> and <code>toAPI</code> functions can contain valid calls to C++ not only within their function call, but also appended to their call. For example, the arrow sign appended to the end of a <code>toImpl</code> call is completely valid: the type at the time is C++.</p>
+<p>Compiling all of this with CMake involves a simple glob and install, as shown below:</p>
+<pre><code class="cmake">project(API_C)
+
+file(GLOB API_C_SRC
+  &quot;*.h&quot;
+  &quot;*.cpp&quot;
+)
+
+add_library(API_C SHARED ${API_C_SRC})
+
+target_link_libraries(API_C) ## list all dependent C++ libraries after API_C
+</code></pre>
+
 <p>In the next section, we shall explore how to export these C functions to Erlang.</p>
               
             </div>
