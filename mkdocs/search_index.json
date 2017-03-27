@@ -2,17 +2,17 @@
     "docs": [
         {
             "location": "/", 
-            "text": "Welcome to the OpenMVG Erlang Tutorial\n\n\nIntroduction\n\n\nThis should provide a (reasonable) introduction to the Erlang bindings for OpenMVG.\nThroughout this tutorial, we should cover:\n1. Creating a C++ \n-\n C API binding\n2. Creating the C API \n-\n Erlang binding", 
+            "text": "Welcome to the C++ to Erlang Tutorial\n\n\nIntroduction\n\n\nThis should provide a (reasonable) introduction to the Erlang bindings for C++.\nThroughout this tutorial, we should cover:\n1. Creating a C++ \n-\n C API binding\n2. Creating the C API \n-\n Erlang binding", 
             "title": "Home"
         }, 
         {
-            "location": "/#welcome-to-the-openmvg-erlang-tutorial", 
+            "location": "/#welcome-to-the-c-to-erlang-tutorial", 
             "text": "", 
-            "title": "Welcome to the OpenMVG Erlang Tutorial"
+            "title": "Welcome to the C++ to Erlang Tutorial"
         }, 
         {
             "location": "/#introduction", 
-            "text": "This should provide a (reasonable) introduction to the Erlang bindings for OpenMVG.\nThroughout this tutorial, we should cover:\n1. Creating a C++  -  C API binding\n2. Creating the C API  -  Erlang binding", 
+            "text": "This should provide a (reasonable) introduction to the Erlang bindings for C++.\nThroughout this tutorial, we should cover:\n1. Creating a C++  -  C API binding\n2. Creating the C API  -  Erlang binding", 
             "title": "Introduction"
         }, 
         {
