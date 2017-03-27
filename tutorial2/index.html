@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  
+  <link rel="shortcut icon" href="../img/favicon.ico">
+  <title>2: C <-> Erlang - OpenMVG Erlang Tutorial</title>
+  <link href='https://fonts.googleapis.com/css?family=Lato:400,700|Roboto+Slab:400,700|Inconsolata:400,700' rel='stylesheet' type='text/css'>
+
+  <link rel="stylesheet" href="../css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../css/theme_extra.css" type="text/css" />
+  <link rel="stylesheet" href="../css/highlight.css">
+  
+  <script>
+    // Current page data
+    var mkdocs_page_name = "2: C <-> Erlang";
+    var mkdocs_page_input_path = "tutorial2.md";
+    var mkdocs_page_url = "/tutorial2/";
+  </script>
+  
+  <script src="../js/jquery-2.1.1.min.js"></script>
+  <script src="../js/modernizr-2.8.3.min.js"></script>
+  <script type="text/javascript" src="../js/highlight.pack.js"></script> 
+  
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+      <div class="wy-side-nav-search">
+        <a href=".." class="icon icon-home"> OpenMVG Erlang Tutorial</a>
+        <div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+	<ul class="current">
+	  
+          
+            <li class="toctree-l1">
+		
+    <a class="" href="..">Home</a>
+	    </li>
+          
+            <li class="toctree-l1">
+		
+    <span class="caption-text">Tutorial</span>
+    <ul class="subnav">
+                <li class="">
+                    
+    <a class="" href="../tutorial1/">1: C++ <-> C</a>
+                </li>
+                <li class=" current">
+                    
+    <a class="current" href="./">2: C <-> Erlang</a>
+    <ul class="subnav">
+            
+    <li class="toctree-l3"><a href="#exporting-the-c-to-erlang-layer">Exporting the C to Erlang layer</a></li>
+    
+        <ul>
+        
+            <li><a class="toctree-l4" href="#prerequisites">Prerequisites</a></li>
+        
+            <li><a class="toctree-l4" href="#creating-each-c-to-erlang-binding">Creating each C to Erlang binding</a></li>
+        
+            <li><a class="toctree-l4" href="#using-your-object-from-erlang">Using your object from Erlang</a></li>
+        
+        </ul>
+    
+
+    </ul>
+                </li>
+    </ul>
+	    </li>
+          
+        </ul>
+      </div>
+      &nbsp;
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+        <a href="..">OpenMVG Erlang Tutorial</a>
+      </nav>
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="..">Docs</a> &raquo;</li>
+    
+      
+        
+          <li>Tutorial &raquo;</li>
+        
+      
+    
+    <li>2: C <-> Erlang</li>
+    <li class="wy-breadcrumbs-aside">
+      
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main">
+            <div class="section">
+              
+                <h1 id="exporting-the-c-to-erlang-layer">Exporting the C to Erlang layer</h1>
+<h2 id="prerequisites">Prerequisites</h2>
+<p>Each prerequisite for this section is listed below:</p>
+<ul>
+<li>Clang</li>
+<li>Nifty</li>
+<li>Erlang interpreter &lt;= R17</li>
+</ul>
+<p>On a Nix system, these should already be pulled in from the <code>default.nix</code> file locaed in the nifty folder. To globally add the <code>clang</code> and <code>erlang</code> packages, the commands would look like such:</p>
+<pre><code># Imperative
+nix-env -i clang erlang
+
+#Declarative
+pkgs = [
+  clang
+  erlang
+];
+</code></pre>
+
+<p>On Ubuntu, the command would look as such:</p>
+<pre><code class="shell">sudo apt-get install clang erlang
+git clone https://github.com/parapluu/nifty
+cd nifty ; make
+</code></pre>
+
+<p><strong>IMPORTANT</strong>: your Erlang interpreter <strong>MUST</strong> include support for dirty scheduling. Without this, native calls block all schedulers within the Erlang ecosystem and choke other processes from completion. On a Nix system, the configuration for enabling dirty scheduling would appear as so:</p>
+<pre><code>nixpkgs.config = {
+  packageOverrides = super: let self = super.pkgs; in {
+    erlang = super.erlang.override { enableDirtySchedulers = true; };
+  };
+};
+</code></pre>
+
+<p>On Ubuntu, a manual configuration and compilation of the Erlang package must be used. First, download the OTP from the <a href="https://www.erlang.org/downloads/18.3">Erlang Website</a>. Then, enter the directory and run the following commands:</p>
+<pre><code class="shell">./configure --enable-dirty-schedulers
+make
+</code></pre>
+
+<p>This allows your Erlang distribution to compile with dirty scheduling enabled. Extra prerequisites are necessary to compile Erlang from source; for more information, visit the <a href="https://github.com/erlang/otp/blob/maint/HOWTO/INSTALL.md">install page</a>.</p>
+<h2 id="creating-each-c-to-erlang-binding">Creating each C to Erlang binding</h2>
+<p>So far, you have a header and source file that you have compiled into a shared object. Your Erlang code must be able to load and call each function. Normally, this would require creating specific Erlang bindings manually in C; however, Nifty alleviates this problem through the Clang parsing mechanism. In order to use Nifty globally from the Erlang interpreter, it must first be added to the <code>ERL_LIBS</code> environmental variable within your shell.</p>
+<pre><code class="shell">export ERL_LIBS=$ERL_LIBS:&quot;path_to_nifty_install&quot;
+</code></pre>
+
+<p>This enables the Erlang interpreter to find the Nifty installation. From here, one can load and attempt to use Nifty from the Erlang interpeter to ensure its global functionality within your C source directory:</p>
+<pre><code class="erlang">1&gt; nifty:compile(&quot;Bar_API.h&quot;, bar_api, []).
+</code></pre>
+
+<p>Hopefully, this should return an <code>ok</code> from the Erlang shell. If nifty can't be found, it hasn't yet been included in your <code>ERL_LIBS</code>.</p>
+<p>Three primary parameters are passed into this function: a header file, an atom of the name you would like to assign to your library, and a list of options. When attempting to load this library from the first time from the Erlang REPL using the command <code>l(bar_api)</code>, you may see a "Failed to load NIF error". This is natural: we haven't appropriately linked against our shared object library. We must specify this in the command. The full command for exporting our header functions while linking against our shared object library is stated as such:</p>
+<pre><code class="erlang">nifty:compile(&quot;Bar_API.h&quot;, bar_api, [
+                                      {port_specs, 
+                                        [
+                                          {
+                                            &quot;.*&quot;, 
+                                            &quot;$NIF&quot;, 
+                                            [],
+                                            [
+                                              {env, [
+                                                     {&quot;CFLAGS&quot;, &quot;$CFLAGS -I&quot; ++ &quot;(PATH_TO_HEADER_DIRECTORY)&quot;},
+                                                     {&quot;LDFLAGS&quot;, &quot;$LDFLAGS&quot; ++ &quot;(PATH_TO_SHARED_OBJECT)&quot;}
+                                                    ]}
+                                            ]
+                                          }
+                                        ]},
+                                        {nifty, [schedule_dirty]}
+                                    ]).
+</code></pre>
+
+<p>The important two variables to observe here are the <code>PATH_TO_HEADER_DIRECTORY</code> and the <code>PATH_TO_SHARED_OBJECT</code>. These variables must be specified in order for the compiler to compile and appropriately link your code. Multiple shared linker objects can be specified; in fact, these variables correlate directly with the CFLAGS and LDFLAGS variables found within a standard C compilation system. Inside of the <code>env</code> variable, you may list each environment variable that you would like to specify.</p>
+<h2 id="using-your-object-from-erlang">Using your object from Erlang</h2>
+<p>Now that the Erlang library bindings have been generated, it's time to test their functionality. Attempt to run the following:</p>
+<pre><code class="erlang">1&gt; bar_api:barPtrCreate().
+</code></pre>
+
+<p>This function should return a two-tuple containing a number and a string describing the type. This is completely normal: nifty uses this to describe the postiion and type of the pointer it hands back to you. From this, you can call functions on this object. For example, let's look at calling <code>add1()</code> from Erlang.</p>
+<pre><code class="erlang">1&gt; BarObj1 = bar_api:barPtrCreate().
+2&gt; bar_api:barPtrAdd1(BarObj1, 2).
+</code></pre>
+
+<p>This enables us to pass and control C++ objects from Erlang. A lot happens under the hood here, so let's break this down. First, we call an Erlang function <code>bar_api:barPtrCreate()</code>. If the <code>bar_api</code> library has not loaded the shared object file into memory, it shall attempt to load the shared object file. Assuming this completes successfully, Erlang will call the C-facing unmangled function listed in the shared object file. This unmangled function will call mangled functions from within the declaration. These functions then complete, returning a C-facing variable which can then be returned to the Erlang interpreter. The Erlang interpreter can then interpret what it receives.</p>
+<p>The second portion allows us to pass local memory and Erlang terms to the NIF. If the Erlang term is natively compatible with a C type, nifty will automatically convert the type to a C type. From here, a call is made to the shared object library with the locally instantiated pointer and variable. This action is completed, and a variable is returned to us.</p>
+<p>From here, we can successfully interface with our C/C++ NIF library.</p>
+              
+            </div>
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+      
+        <a href="../tutorial1/" class="btn btn-neutral" title="1: C++ <-> C"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+    
+  </div>
+
+  Built with <a href="http://www.mkdocs.org">MkDocs</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+	  
+        </div>
+      </div>
+
+    </section>
+    
+  </div>
+
+  <div class="rst-versions" role="note" style="cursor: pointer">
+    <span class="rst-current-version" data-toggle="rst-current-version">
+      
+      
+        <span><a href="../tutorial1/" style="color: #fcfcfc;">&laquo; Previous</a></span>
+      
+      
+    </span>
+</div>
+    <script src="../js/theme.js"></script>
+
+</body>
+</html>

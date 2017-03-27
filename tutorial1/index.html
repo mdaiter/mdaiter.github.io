@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  
+  <link rel="shortcut icon" href="../img/favicon.ico">
+  <title>1: C++ <-> C - OpenMVG Erlang Tutorial</title>
+  <link href='https://fonts.googleapis.com/css?family=Lato:400,700|Roboto+Slab:400,700|Inconsolata:400,700' rel='stylesheet' type='text/css'>
+
+  <link rel="stylesheet" href="../css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../css/theme_extra.css" type="text/css" />
+  <link rel="stylesheet" href="../css/highlight.css">
+  
+  <script>
+    // Current page data
+    var mkdocs_page_name = "1: C++ <-> C";
+    var mkdocs_page_input_path = "tutorial1.md";
+    var mkdocs_page_url = "/tutorial1/";
+  </script>
+  
+  <script src="../js/jquery-2.1.1.min.js"></script>
+  <script src="../js/modernizr-2.8.3.min.js"></script>
+  <script type="text/javascript" src="../js/highlight.pack.js"></script> 
+  
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+      <div class="wy-side-nav-search">
+        <a href=".." class="icon icon-home"> OpenMVG Erlang Tutorial</a>
+        <div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+	<ul class="current">
+	  
+          
+            <li class="toctree-l1">
+		
+    <a class="" href="..">Home</a>
+	    </li>
+          
+            <li class="toctree-l1">
+		
+    <span class="caption-text">Tutorial</span>
+    <ul class="subnav">
+                <li class=" current">
+                    
+    <a class="current" href="./">1: C++ <-> C</a>
+    <ul class="subnav">
+            
+    <li class="toctree-l3"><a href="#creating-the-c-c-header">Creating the C++ &lt;-&gt; C header</a></li>
+    
+
+    <li class="toctree-l3"><a href="#defining-the-c-header-and-source-file">Defining the C header and source file</a></li>
+    
+
+    </ul>
+                </li>
+                <li class="">
+                    
+    <a class="" href="../tutorial2/">2: C <-> Erlang</a>
+                </li>
+    </ul>
+	    </li>
+          
+        </ul>
+      </div>
+      &nbsp;
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+        <a href="..">OpenMVG Erlang Tutorial</a>
+      </nav>
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="..">Docs</a> &raquo;</li>
+    
+      
+        
+          <li>Tutorial &raquo;</li>
+        
+      
+    
+    <li>1: C++ <-> C</li>
+    <li class="wy-breadcrumbs-aside">
+      
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main">
+            <div class="section">
+              
+                <h2 id="creating-the-c-c-header">Creating the C++ &lt;-&gt; C header</h2>
+<p>When creating the initial Erlang link, we must first create a transparency layer from mangled C++ declarations into unmangled C declarations.
+This allows the Erlang interpreter to directly address specific natively-implemented functions (NIFs) declared within generated shared objects. When calling NIFs, the Erlang interpreter <strong>must</strong> be able to directly call each NIF by generated function name. If the name happens to be mangled, the burden of addressing each specific function falls onto the end user. To avoid this and ensure maintainability, we force the user to create a C++ &lt;-&gt; C binding layer.</p>
+<p>To initially create our layer, we create a <code>typedef</code> from a <code>const struct*</code> type to a custom defined type. This appears as such:</p>
+<pre><code class="c">typedef const struct* OpaqueClass OpaquePtr;
+</code></pre>
+
+<p>Creating a <code>typedef</code> statement simply masks our constant structure as a type. This allows one to deal with each type independently of the <code>const struct*</code> snippet.</p>
+<p>Next, we forward-declare which class with which to associate this pointer.</p>
+<pre><code class="c++">namespace openMVG {
+  namespace foo {
+    class Bar;
+  }
+}
+</code></pre>
+
+<p>This enables us to declare--<strong>without</strong> defining--a specific C++ class and create the necessary association to the opaque C pointer. The reasoning behind this concept is important: from here, we can cast back and forth between C opaque pointers and C++ classes without needing to include all data. Typechecking between C and C++ data structures becomes possible, and casting between both types enables us to transform opaque C data to a declared C++ class. Furthermore, compilation time plummets due to less compilation-intensive header files from being included within the C++ bindings.</p>
+<p>The compiler must know which C types to associate to which C++ types. Therefore, a casting system is necessary. To alleviate burden from the end user, one can create a specialized C++ template function that can swizzle types between C and C++. The functions are listed below.</p>
+<pre><code class="c++">template&lt;typename APIType&gt; struct APITypeInfo;
+template&lt;typename ImplType&gt; struct ImplTypeInfo;
+
+#define ADD_API_MAPPING(TheAPIType, TheImplType) \
+template&lt;&gt; struct APITypeInfo&lt;TheAPIType&gt; { typedef TheImplType ImplType; }; \
+template&lt;&gt; struct ImplTypeInfo&lt;TheImplType&gt; { typedef TheAPIType APIType; };
+
+template&lt;typename T, typename APIType = typename ImplTypeInfo&lt;T&gt;::APIType&gt;
+auto toAPI(T* t) -&gt; APIType
+{
+    return reinterpret_cast&lt;APIType&gt;(t);
+}
+
+template&lt;typename T, typename ImplType = typename APITypeInfo&lt;T&gt;::ImplType&gt;
+auto toImpl(T t) -&gt; ImplType*
+{
+    return static_cast&lt;ImplType*&gt;(static_cast&lt;void*&gt;(const_cast&lt;typename std::remove_const&lt;typename std::remove_pointer&lt;T&gt;::type&gt;::type*&gt;(t)));
+}
+</code></pre>
+
+<p>Let's break this down.</p>
+<pre><code class="c++">template&lt;typename APIType&gt; struct APITypeInfo;
+template&lt;typename ImplType&gt; struct ImplTypeInfo;
+</code></pre>
+
+<p>These two lines define <code>APITypeInfo</code> and <code>InplTypeInfo</code> as specializations of templating functions. When given a specific type, <code>APITypeInfo</code> and <code>ImplTypeInfo</code> transform into specific types.</p>
+<pre><code class="c++">#define ADD_API_MAPPING(TheAPIType, TheImplType) \
+template&lt;&gt; struct APITypeInfo&lt;TheAPIType&gt; { typedef TheImplType ImplType; }; \
+template&lt;&gt; struct ImplTypeInfo&lt;TheImplType&gt; { typedef TheAPIType APIType; };
+</code></pre>
+
+<p>This defines a macro (<code>ADD_API_MAPPING</code>) that takes two types and creates a specialized template function for each type given. Understanding <code>template&lt;&gt;</code> syntax is crucial for understanding how this works: this construct allows for <strong>only</strong> specific types of a C++ templated function to be instantiated. If this templated function is called without a type or with an undefined type, the compiler prohibits compilation.</p>
+<pre><code class="c++">template&lt;typename T, typename APIType = typename ImplTypeInfo&lt;T&gt;::APIType&gt;
+auto toAPI(T* t) -&gt; APIType
+{
+    return reinterpret_cast&lt;APIType&gt;(t);
+}
+
+template&lt;typename T, typename ImplType = typename APITypeInfo&lt;T&gt;::ImplType&gt;
+auto toImpl(T t) -&gt; ImplType*
+{
+    return static_cast&lt;ImplType*&gt;(static_cast&lt;void*&gt;(const_cast&lt;typename std::remove_const&lt;typename std::remove_pointer&lt;T&gt;::type&gt;::type*&gt;(t)));
+}
+</code></pre>
+
+<p>Finally, the <code>toAPI</code> and <code>toImpl</code> functions are declared. These parse given types and their bound compliments, and they cast between C and C++. These lines are where the magic happens: given a specific type, we can pull out the type and reinterpret it to another language's complimentary type.</p>
+<p>Now that this exists, typecasting between C++ and C becomes simple. We can just declare an association in the header file, as such:</p>
+<pre><code class="c++">ADD_API_MAPPING(OpaquePtr, openMVG::foo::Bar)
+</code></pre>
+
+<p>and automatically generate all bindings necessary to call <code>toAPI</code>/<code>toImpl</code> on a <code>openMVG::foo::Bar</code>/<code>OpaquePtr</code> object, respectively.</p>
+<p>The entire header file is listed here:</p>
+<pre><code class="c++">// shared_api_cast.h
+#pragma once
+typedef const struct* OpaqueClass OpaquePtr;
+
+namespace openMVG {
+  namespace foo {
+    class Bar;
+  }
+}
+
+template&lt;typename APIType&gt; struct APITypeInfo;
+template&lt;typename ImplType&gt; struct ImplTypeInfo;
+
+#define ADD_API_MAPPING(TheAPIType, TheImplType) \
+template&lt;&gt; struct APITypeInfo&lt;TheAPIType&gt; { typedef TheImplType ImplType; }; \
+template&lt;&gt; struct ImplTypeInfo&lt;TheImplType&gt; { typedef TheAPIType APIType; };
+
+template&lt;typename T, typename APIType = typename ImplTypeInfo&lt;T&gt;::APIType&gt;
+auto toAPI(T* t) -&gt; APIType
+{
+    return reinterpret_cast&lt;APIType&gt;(t);
+}
+
+template&lt;typename T, typename ImplType = typename APITypeInfo&lt;T&gt;::ImplType&gt;
+auto toImpl(T t) -&gt; ImplType*
+{
+    return static_cast&lt;ImplType*&gt;(static_cast&lt;void*&gt;(const_cast&lt;typename std::remove_const&lt;typename std::remove_pointer&lt;T&gt;::type&gt;::type*&gt;(t)));
+}
+
+// And here's where you can bind
+
+ADD_API_MAPPING(OpaquePtr, openMVG::foo::Bar)
+</code></pre>
+
+<h2 id="defining-the-c-header-and-source-file">Defining the C header and source file</h2>
+<p>Now that the compiler is informed of all type swapping between opaque pointers and forward-declared classes, it is able to now auto-swizzle types between C and C++. This definition now can be exposed to all C++ and C files that use each opaque pointer and forward-declared class. We must declare methods to interact with our defined opaque pointers.</p>
+<p>For this example, assume that the class <code>openMVG::foo::Bar</code> has three main methods: a constructor, a destructor, and a method <code>int add1(int)</code>. So, the class definition would appear as so:</p>
+<pre><code class="c++">// Bar.h
+#pragma once
+namespace openMVG {
+
+namespace foo {
+
+class Bar {
+public:
+  Bar();
+  int add1(int x) { return x + 1 }
+  ~Bar();
+};
+
+}
+
+}
+</code></pre>
+
+<p>If this class were instantiated, each public member could easily be accessed and called by the developer. But because we cannot instantiate this class in pure C, we must rely on the opaque pointer to hold and access each member function. Therefore, we must define methods that prohibit the C++ compiler from mangling C headers containing the opaque pointer, while allowing the functions inside the declaration to be mangled.</p>
+<p>First, we must define a C++ header in which we express the interaction with our base opaque pointers. A sample C++ header is defined as such:</p>
+<pre><code class="c++">// Bar_API.h
+#pragma once
+
+#include &quot;shared_api_cast.h&quot;
+
+#ifdef __cplusplus
+extern &quot;C&quot; {
+#endif
+
+OpaquePtr barPtrCreate();
+
+int barPtrAdd1(OpaquePtr, int);
+void barPtrDelete(OpaquePtr);
+
+#ifdef __cplusplus
+}
+#endif
+</code></pre>
+
+<p>As observed, the primary C interaction will entail instantiating and manipulating an <code>OpaquePtr</code> pointing to our C++ class. We need the <code>extern C</code> blocks: we must disable the C++ compiler from mangling these function headers, which the <code>extern C</code> blocks perform. From here, we can ensure the Erlang interpreter will be able to find these specific functions while loading the native library.</p>
+<p>From here, we must define the C functions. This looks as follows:</p>
+<pre><code class="c++">// Bar_API.cpp
+#include &quot;Bar_API.h&quot;
+#include &quot;Bar.h&quot;
+
+OpaquePtr barPtrCreate() {
+  openMVG::foo::Bar* barCpp = new openMVG::foo::Bar();
+  return toAPI(barCpp);
+}
+
+int barPtrAdd1(OpaquePtr ptr, int x) {
+  openMVG::foo::Bar* barCpp = toImpl(ptr);
+  return barCpp-&gt;add1(x);
+}
+
+void barPtrDelete(OpaquePtr ptr) {
+  openMVG::foo::Bar* barCpp = toImpl(ptr);
+  delete barCpp;
+}
+</code></pre>
+
+<p>As observed, each C function is defined with C++ code being called inside. The ability to call C++ from C lies in the C++ compiler's internal mapping mechanism. The C functions remain unmangled at the definition, but inside the C++ compiler can mangle and link any valid C++ code. This part is <strong>crucial</strong> to understanding the methods through which one can link C to C++. Because this code is compiled by a C++ compiler, the C++ compiler can compile C++ code inside of a C-facing function. This allows for the instantiation of C++ objects to C opaque pointers, thereby allowing access to all of C++ from C (especially the <code>toAPI</code> and <code>toImpl</code> functions).</p>
+<p>For simplicity's sake, each interaction above first starts with a sole line for a C++ class pointer for specifically reinterpreting the C opaque pointer. A more compact form is presented as such:</p>
+<pre><code class="c++">// Bar_API.cpp
+#include &quot;Bar_API.h&quot;
+#include &quot;Bar.h&quot;
+
+OpaquePtr barPtrCreate() {
+  return toAPI(new openMVG::foo::Bar());
+}
+
+int barPtrAdd1(OpaquePtr ptr, int x) {
+  return toImpl(ptr)-&gt;add1(x);
+}
+
+void barPtrDelete(OpaquePtr ptr) {
+  delete toImpl(barCpp);
+}
+</code></pre>
+
+<p>As seen above, the <code>toImpl</code> and <code>toAPI</code> functions can contain valid calls to C++ not only within their function call, but also appended to their call. For example, the arrow sign appended to the end of a <code>toImpl</code> call is completely valid: the type at the time is C++.</p>
+<p>In the next section, we shall explore how to export these C functions to Erlang.</p>
+              
+            </div>
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="../tutorial2/" class="btn btn-neutral float-right" title="2: C <-> Erlang">Next <span class="icon icon-circle-arrow-right"></span></a>
+      
+      
+        <a href=".." class="btn btn-neutral" title="Home"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+    
+  </div>
+
+  Built with <a href="http://www.mkdocs.org">MkDocs</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+	  
+        </div>
+      </div>
+
+    </section>
+    
+  </div>
+
+  <div class="rst-versions" role="note" style="cursor: pointer">
+    <span class="rst-current-version" data-toggle="rst-current-version">
+      
+      
+        <span><a href=".." style="color: #fcfcfc;">&laquo; Previous</a></span>
+      
+      
+        <span style="margin-left: 15px"><a href="../tutorial2/" style="color: #fcfcfc">Next &raquo;</a></span>
+      
+    </span>
+</div>
+    <script src="../js/theme.js"></script>
+
+</body>
+</html>
