@@ -121,10 +121,8 @@ This allows the Erlang interpreter to directly address specific natively-impleme
 
 <p>Creating a <code>typedef</code> statement simply masks our constant structure as a type. This allows one to deal with each type independently of the <code>const struct*</code> snippet.</p>
 <p>Next, we forward-declare which class with which to associate this pointer.</p>
-<pre><code class="c++">namespace openMVG {
-  namespace foo {
-    class Bar;
-  }
+<pre><code class="c++">namespace foo {
+  class Bar;
 }
 </code></pre>
 
@@ -177,19 +175,17 @@ auto toImpl(T t) -&gt; ImplType*
 
 <p>Finally, the <code>toAPI</code> and <code>toImpl</code> functions are declared. These parse given types and their bound compliments, and they cast between C and C++. These lines are where the magic happens: given a specific type, we can pull out the type and reinterpret it to another language's complimentary type.</p>
 <p>Now that this exists, typecasting between C++ and C becomes simple. We can just declare an association in the header file, as such:</p>
-<pre><code class="c++">ADD_API_MAPPING(OpaquePtr, openMVG::foo::Bar)
+<pre><code class="c++">ADD_API_MAPPING(OpaquePtr, foo::Bar)
 </code></pre>
 
-<p>and automatically generate all bindings necessary to call <code>toAPI</code>/<code>toImpl</code> on a <code>openMVG::foo::Bar</code>/<code>OpaquePtr</code> object, respectively.</p>
+<p>and automatically generate all bindings necessary to call <code>toAPI</code>/<code>toImpl</code> on a <code>foo::Bar</code>/<code>OpaquePtr</code> object, respectively.</p>
 <p>The entire header file is listed here:</p>
 <pre><code class="c++">// shared_api_cast.h
 #pragma once
 typedef const struct* OpaqueClass OpaquePtr;
 
-namespace openMVG {
-  namespace foo {
-    class Bar;
-  }
+namespace foo {
+  class Bar;
 }
 
 template&lt;typename APIType&gt; struct APITypeInfo;
@@ -213,16 +209,14 @@ auto toImpl(T t) -&gt; ImplType*
 
 // And here's where you can bind
 
-ADD_API_MAPPING(OpaquePtr, openMVG::foo::Bar)
+ADD_API_MAPPING(OpaquePtr, foo::Bar)
 </code></pre>
 
 <h2 id="defining-the-c-header-and-source-file">Defining the C header and source file</h2>
 <p>Now that the compiler is informed of all type swapping between opaque pointers and forward-declared classes, it is able to now auto-swizzle types between C and C++. This definition now can be exposed to all C++ and C files that use each opaque pointer and forward-declared class. We must declare methods to interact with our defined opaque pointers.</p>
-<p>For this example, assume that the class <code>openMVG::foo::Bar</code> has three main methods: a constructor, a destructor, and a method <code>int add1(int)</code>. So, the class definition would appear as so:</p>
+<p>For this example, assume that the class <code>foo::Bar</code> has three main methods: a constructor, a destructor, and a method <code>int add1(int)</code>. So, the class definition would appear as so:</p>
 <pre><code class="c++">// Bar.h
 #pragma once
-namespace openMVG {
-
 namespace foo {
 
 class Bar {
@@ -231,8 +225,6 @@ public:
   int add1(int x) { return x + 1 }
   ~Bar();
 };
-
-}
 
 }
 </code></pre>
@@ -265,17 +257,17 @@ void barPtrDelete(OpaquePtr);
 #include &quot;Bar.h&quot;
 
 OpaquePtr barPtrCreate() {
-  openMVG::foo::Bar* barCpp = new openMVG::foo::Bar();
+  foo::Bar* barCpp = new foo::Bar();
   return toAPI(barCpp);
 }
 
 int barPtrAdd1(OpaquePtr ptr, int x) {
-  openMVG::foo::Bar* barCpp = toImpl(ptr);
+  foo::Bar* barCpp = toImpl(ptr);
   return barCpp-&gt;add1(x);
 }
 
 void barPtrDelete(OpaquePtr ptr) {
-  openMVG::foo::Bar* barCpp = toImpl(ptr);
+  foo::Bar* barCpp = toImpl(ptr);
   delete barCpp;
 }
 </code></pre>
@@ -287,7 +279,7 @@ void barPtrDelete(OpaquePtr ptr) {
 #include &quot;Bar.h&quot;
 
 OpaquePtr barPtrCreate() {
-  return toAPI(new openMVG::foo::Bar());
+  return toAPI(new foo::Bar());
 }
 
 int barPtrAdd1(OpaquePtr ptr, int x) {
